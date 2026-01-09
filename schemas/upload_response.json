@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://image-processing.celesteos.com/schemas/upload_response.json",
+  "title": "Upload Response",
+  "description": "Response schema for image/PDF upload endpoint",
+  "type": "object",
+  "required": ["status", "images"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "partial_success"]
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/UploadedImage"
+      }
+    },
+    "session_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Receiving session UUID if applicable"
+    },
+    "processing_eta_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "next_steps": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["poll_status", "view_session", "retry_upload"]
+        },
+        "poll_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "poll_interval_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  },
+  "definitions": {
+    "UploadedImage": {
+      "type": "object",
+      "required": ["image_id", "file_name", "is_duplicate", "processing_status"],
+      "properties": {
+        "image_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "file_size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mime_type": {
+          "type": "string",
+          "pattern": "^(image/(jpeg|png|heic)|application/pdf)$"
+        },
+        "is_duplicate": {
+          "type": "boolean"
+        },
+        "existing_image_id": {
+          "type": ["string", "null"],
+          "format": "uuid"
+        },
+        "processing_status": {
+          "type": "string",
+          "enum": ["queued", "processing", "completed", "failed"]
+        },
+        "storage_path": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

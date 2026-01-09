@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://image-processing.celesteos.com/schemas/error_response.json",
+  "title": "Error Response",
+  "description": "Standard error response schema for all API endpoints",
+  "type": "object",
+  "required": ["status", "error_code", "message", "timestamp"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "const": "error"
+    },
+    "error_code": {
+      "type": "string",
+      "enum": [
+        "INVALID_FILE_TYPE",
+        "FILE_TOO_LARGE",
+        "IMAGE_TOO_SMALL",
+        "IMAGE_BLURRY",
+        "DUPLICATE_IMAGE",
+        "RATE_LIMIT_EXCEEDED",
+        "INVALID_TOKEN",
+        "TOKEN_EXPIRED",
+        "MISSING_TOKEN",
+        "INSUFFICIENT_PERMISSIONS",
+        "YACHT_ISOLATION_VIOLATION",
+        "INVALID_SESSION_STATE",
+        "SESSION_NOT_FOUND",
+        "IMAGE_NOT_FOUND",
+        "DRAFT_LINE_NOT_FOUND",
+        "OCR_FAILED",
+        "STORAGE_UPLOAD_FAILED",
+        "LLM_TIMEOUT",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable error message"
+    },
+    "details": {
+      "type": "object",
+      "description": "Additional error context (varies by error type)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "request_id": {
+      "type": "string",
+      "description": "Unique request identifier for tracing"
+    }
+  }
+}

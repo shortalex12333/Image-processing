@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://image-processing.celesteos.com/schemas/draft_line.json",
+  "title": "Draft Line",
+  "description": "Receiving draft line item schema",
+  "type": "object",
+  "required": [
+    "draft_line_id",
+    "line_number",
+    "quantity",
+    "unit",
+    "description",
+    "is_verified",
+    "source_image_id"
+  ],
+  "properties": {
+    "draft_line_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "line_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "quantity": {
+      "type": "number",
+      "minimum": 0,
+      "exclusiveMinimum": true
+    },
+    "unit": {
+      "type": "string",
+      "enum": ["ea", "box", "case", "pcs", "lbs", "kg", "g", "ft", "m", "gal", "L"]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "extracted_part_number": {
+      "type": ["string", "null"]
+    },
+    "is_verified": {
+      "type": "boolean"
+    },
+    "verified_by": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    },
+    "verified_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "source_image_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "suggested_part": {
+      "type": ["object", "null"],
+      "properties": {
+        "part_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "part_number": {
+          "type": "string"
+        },
+        "part_name": {
+          "type": "string"
+        },
+        "manufacturer": {
+          "type": ["string", "null"]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "match_reason": {
+          "type": "string",
+          "enum": [
+            "exact_part_number",
+            "fuzzy_description",
+            "on_shopping_list",
+            "recent_order",
+            "user_override"
+          ]
+        },
+        "current_stock": {
+          "type": ["number", "null"]
+        },
+        "bin_location": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["part_id", "part_number", "part_name", "confidence", "match_reason"]
+    },
+    "alternative_suggestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "part_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "part_number": {
+            "type": "string"
+          },
+          "part_name": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "match_reason": {
+            "type": "string"
+          }
+        },
+        "required": ["part_id", "part_number", "confidence"]
+      }
+    },
+    "shopping_list_match": {
+      "type": ["object", "null"],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "quantity_requested": {
+          "type": "number"
+        },
+        "quantity_approved": {
+          "type": ["number", "null"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["candidate", "approved", "ordered", "received", "fulfilled"]
+        }
+      },
+      "required": ["item_id", "quantity_requested", "status"]
+    },
+    "has_discrepancy": {
+      "type": "boolean"
+    },
+    "discrepancy_type": {
+      "type": ["string", "null"],
+      "enum": [null, "damaged", "incorrect", "missing", "quantity_mismatch"]
+    },
+    "discrepancy_notes": {
+      "type": ["string", "null"]
+    },
+    "discrepancy_photos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "image_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["image_id", "file_name"]
+      }
+    }
+  }
+}

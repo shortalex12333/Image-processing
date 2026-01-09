@@ -1,0 +1,308 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://image-processing.celesteos.com/schemas/session_response.json",
+  "title": "Session Response",
+  "description": "Response schema for GET /api/v1/receiving/sessions/{id}",
+  "type": "object",
+  "required": ["session"],
+  "properties": {
+    "session": {
+      "type": "object",
+      "required": [
+        "session_id",
+        "session_number",
+        "yacht_id",
+        "status",
+        "draft_lines",
+        "created_at"
+      ],
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "session_number": {
+          "type": "string",
+          "description": "Human-readable session number (RCV-2026-001)",
+          "pattern": "^RCV-\\d{4}-\\d{3,}$"
+        },
+        "yacht_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "committed", "cancelled"],
+          "description": "Session lifecycle status"
+        },
+        "created_by": {
+          "type": "string",
+          "format": "uuid",
+          "description": "User ID who created session"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "committed_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When session was committed (null if still draft)"
+        },
+        "committed_by": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "User ID who committed (null if still draft)"
+        },
+        "draft_lines": {
+          "type": "array",
+          "description": "Draft line items extracted from images",
+          "items": {
+            "$ref": "https://image-processing.celesteos.com/schemas/draft_line.json"
+          }
+        },
+        "source_images": {
+          "type": "array",
+          "description": "Images that were processed to create this session",
+          "items": {
+            "type": "object",
+            "properties": {
+              "image_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "file_name": {
+                "type": "string"
+              },
+              "uploaded_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "processing_status": {
+                "type": "string",
+                "enum": ["queued", "processing", "completed", "failed"]
+              },
+              "ocr_confidence": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "maximum": 1,
+                "description": "OCR confidence score if available"
+              },
+              "lines_extracted": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of lines extracted from this image"
+              }
+            },
+            "required": ["image_id", "file_name", "processing_status"]
+          }
+        },
+        "processing_summary": {
+          "type": "object",
+          "description": "Summary of processing metrics",
+          "properties": {
+            "total_lines_extracted": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "lines_verified": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "lines_with_suggestions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "lines_requiring_manual_match": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "llm_invocations": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of LLM calls used for this session"
+            },
+            "total_cost_estimate": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Estimated processing cost in USD"
+            },
+            "ocr_method": {
+              "type": "string",
+              "enum": ["tesseract", "google_vision", "aws_textract", "mixed"],
+              "description": "OCR method(s) used"
+            }
+          }
+        },
+        "verification_status": {
+          "type": "object",
+          "description": "Progress toward commit readiness",
+          "required": ["can_commit", "verification_percentage"],
+          "properties": {
+            "can_commit": {
+              "type": "boolean",
+              "description": "Whether session can be committed (all lines verified or HOD override)"
+            },
+            "verification_percentage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Percentage of lines verified"
+            },
+            "blockers": {
+              "type": "array",
+              "description": "Issues preventing commit",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "enum": [
+                      "UNVERIFIED_LINES",
+                      "PROCESSING_INCOMPLETE",
+                      "DUPLICATE_SESSION",
+                      "MISSING_REQUIRED_DATA"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "affected_line_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "required": ["code", "message"]
+              }
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional session metadata",
+          "properties": {
+            "supplier": {
+              "type": ["string", "null"],
+              "description": "Supplier name if detected from packing slip"
+            },
+            "order_reference": {
+              "type": ["string", "null"],
+              "description": "Purchase order or supplier order number"
+            },
+            "delivery_date": {
+              "type": ["string", "null"],
+              "format": "date",
+              "description": "Delivery date if detected from packing slip"
+            },
+            "notes": {
+              "type": ["string", "null"],
+              "description": "User-provided notes about this receiving session"
+            }
+          }
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "description": "User's permissions for this session",
+      "required": ["can_verify", "can_commit", "can_edit", "can_cancel"],
+      "properties": {
+        "can_verify": {
+          "type": "boolean",
+          "description": "Whether user can verify draft lines"
+        },
+        "can_commit": {
+          "type": "boolean",
+          "description": "Whether user can commit session (HOD only)"
+        },
+        "can_edit": {
+          "type": "boolean",
+          "description": "Whether user can edit draft lines"
+        },
+        "can_cancel": {
+          "type": "boolean",
+          "description": "Whether user can cancel session"
+        },
+        "can_override_verification": {
+          "type": "boolean",
+          "description": "Whether user can commit unverified lines (HOD only)"
+        }
+      }
+    },
+    "related_entities": {
+      "type": ["object", "null"],
+      "description": "Related entities for context",
+      "properties": {
+        "shopping_list_items": {
+          "type": "array",
+          "description": "Shopping list items potentially fulfilled by this session",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "part_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "part_number": {
+                "type": "string"
+              },
+              "quantity_requested": {
+                "type": "number"
+              },
+              "quantity_approved": {
+                "type": ["number", "null"]
+              },
+              "status": {
+                "type": "string",
+                "enum": ["candidate", "approved", "ordered", "received", "fulfilled"]
+              }
+            },
+            "required": ["item_id", "part_id", "quantity_requested", "status"]
+          }
+        },
+        "purchase_orders": {
+          "type": "array",
+          "description": "Purchase orders potentially related to this delivery",
+          "items": {
+            "type": "object",
+            "properties": {
+              "order_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "order_number": {
+                "type": "string"
+              },
+              "supplier": {
+                "type": "string"
+              },
+              "order_date": {
+                "type": "string",
+                "format": "date"
+              },
+              "expected_delivery": {
+                "type": ["string", "null"],
+                "format": "date"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "required": ["order_id", "order_number", "supplier"]
+          }
+        }
+      }
+    }
+  }
+}

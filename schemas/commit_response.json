@@ -1,0 +1,255 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://image-processing.celesteos.com/schemas/commit_response.json",
+  "title": "Commit Response",
+  "description": "Response schema for successful receiving session commit",
+  "type": "object",
+  "required": ["status", "receiving_event", "inventory_updates", "committed_at"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "const": "success"
+    },
+    "receiving_event": {
+      "type": "object",
+      "description": "Immutable receiving event record created",
+      "required": ["event_id", "event_number", "lines_committed", "session_id"],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique identifier for this receiving event"
+        },
+        "event_number": {
+          "type": "string",
+          "description": "Human-readable event number (RCV-EVT-2026-001)",
+          "pattern": "^RCV-EVT-\\d{4}-\\d{3,}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Original session that was committed"
+        },
+        "session_number": {
+          "type": "string",
+          "description": "Original session number (RCV-2026-001)"
+        },
+        "lines_committed": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of draft lines committed"
+        },
+        "total_cost": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Total cost of all items (if unit prices available)"
+        },
+        "committed_by": {
+          "type": "string",
+          "format": "uuid",
+          "description": "User ID of HOD who committed"
+        },
+        "commitment_notes": {
+          "type": "string",
+          "description": "Notes provided during commit"
+        }
+      }
+    },
+    "inventory_updates": {
+      "type": "object",
+      "description": "Summary of inventory changes",
+      "required": ["parts_updated", "total_quantity_added", "transactions_created"],
+      "properties": {
+        "parts_updated": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of unique parts updated"
+        },
+        "new_parts_created": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of new part records created (if auto-create enabled)"
+        },
+        "total_quantity_added": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total quantity across all parts"
+        },
+        "transactions_created": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of inventory transaction records created"
+        },
+        "low_stock_alerts": {
+          "type": "array",
+          "description": "Parts that triggered low stock alerts after update",
+          "items": {
+            "type": "object",
+            "properties": {
+              "part_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "part_number": {
+                "type": "string"
+              },
+              "current_quantity": {
+                "type": "number"
+              },
+              "minimum_quantity": {
+                "type": "number"
+              },
+              "shortage": {
+                "type": "number",
+                "description": "How far below minimum (negative value)"
+              }
+            },
+            "required": ["part_id", "part_number", "current_quantity", "minimum_quantity"]
+          }
+        }
+      }
+    },
+    "finance_updates": {
+      "type": ["object", "null"],
+      "description": "Financial transaction summary (if costs recorded)",
+      "properties": {
+        "transactions_created": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_cost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "default": "USD"
+        },
+        "budget_impact": {
+          "type": ["object", "null"],
+          "description": "Impact on yacht budgets if tracked",
+          "properties": {
+            "budget_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "remaining_budget": {
+              "type": "number"
+            },
+            "percentage_used": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        }
+      }
+    },
+    "shopping_list_updates": {
+      "type": ["object", "null"],
+      "description": "Shopping list fulfillment summary",
+      "properties": {
+        "items_fulfilled": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of shopping list items marked as fulfilled"
+        },
+        "items_partially_fulfilled": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Items where quantity received < quantity requested"
+        },
+        "fulfilled_item_ids": {
+          "type": "array",
+          "description": "IDs of shopping list items now fulfilled",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "audit_trail": {
+      "type": "object",
+      "description": "Audit log references",
+      "required": ["audit_log_id", "signature"],
+      "properties": {
+        "audit_log_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "ID of audit log entry created"
+        },
+        "signature": {
+          "type": "string",
+          "description": "Cryptographic signature of commit (SHA256 hash)"
+        },
+        "old_state_hash": {
+          "type": "string",
+          "description": "Hash of session state before commit"
+        },
+        "new_state_hash": {
+          "type": "string",
+          "description": "Hash of committed event state"
+        }
+      }
+    },
+    "committed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of commit"
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Non-blocking warnings generated during commit",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "UNVERIFIED_LINES",
+              "MISSING_PART_NUMBERS",
+              "MISSING_UNIT_PRICES",
+              "OVERSTOCKING_WARNING",
+              "DUPLICATE_PART_DELIVERY"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "affected_line_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": ["code", "message"]
+      }
+    },
+    "next_steps": {
+      "type": "object",
+      "description": "Recommended next actions",
+      "properties": {
+        "generate_labels": {
+          "type": "boolean",
+          "description": "Whether to generate QR code labels for received items"
+        },
+        "label_generation_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Endpoint to generate labels for this event"
+        },
+        "update_shopping_list": {
+          "type": "boolean",
+          "description": "Whether user should review shopping list (items fulfilled)"
+        },
+        "review_low_stock": {
+          "type": "boolean",
+          "description": "Whether there are low stock items requiring attention"
+        }
+      }
+    }
+  }
+}
