@@ -126,3 +126,8 @@ def require_hod(auth: AuthContext) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This action requires HOD permissions (chief_engineer, captain, or manager)"
         )
+
+
+# Aliases for backward compatibility
+UserContext = AuthContext
+get_current_user = get_auth_context
