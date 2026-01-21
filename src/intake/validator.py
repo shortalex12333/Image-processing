@@ -129,29 +129,38 @@ class FileValidator:
                     details={"width": width, "height": height}
                 )
 
-            # Blur detection
-            blur_score = self._detect_blur(content)
-            is_blurry = blur_score < settings.blur_threshold
+            # Document Quality Score (DQS) - replaces blur-only detection
+            dqs_result = self._calculate_dqs(content)
 
-            if is_blurry:
-                logger.warning("Blurry image detected", extra={
-                    "blur_score": blur_score,
-                    "threshold": settings.blur_threshold,
+            if not dqs_result["is_acceptable"]:
+                logger.warning("Poor image quality detected", extra={
+                    "dqs_score": dqs_result["total_score"],
+                    "threshold": settings.dqs_threshold,
+                    "blur": dqs_result["details"]["blur"],
+                    "glare": dqs_result["details"]["glare"],
+                    "contrast": dqs_result["details"]["contrast"],
                     "width": width,
                     "height": height
                 })
                 raise ValidationError(
-                    error_code="IMAGE_BLURRY",
-                    message=f"Image appears blurry (score: {blur_score:.2f}, threshold: {settings.blur_threshold})",
-                    details={"blur_score": blur_score, "threshold": settings.blur_threshold}
+                    error_code="IMAGE_QUALITY_TOO_LOW",
+                    message=f"Image quality too low (DQS: {dqs_result['total_score']}/100). {dqs_result['feedback']}",
+                    details={
+                        "dqs_score": dqs_result["total_score"],
+                        "threshold": settings.dqs_threshold,
+                        "details": dqs_result["details"],
+                        "feedback": dqs_result["feedback"]
+                    }
                 )
 
             return {
                 "is_image": True,
                 "width": width,
                 "height": height,
-                "blur_score": blur_score,
-                "is_blurry": False
+                "dqs_score": dqs_result["total_score"],
+                "dqs_details": dqs_result["details"],
+                "dqs_feedback": dqs_result["feedback"],
+                "is_quality_acceptable": True
             }
 
         except ValidationError:
@@ -193,6 +202,119 @@ class FileValidator:
         except Exception as e:
             logger.warning("Blur detection failed, assuming sharp", extra={"error": str(e)})
             return 100.0  # Assume not blurry if detection fails
+
+    def _calculate_dqs(self, image_bytes: bytes) -> dict:
+        """
+        Calculates Document Quality Score (DQS) as weighted average.
+
+        Metrics:
+        - Blur (40%): Laplacian variance > 100
+        - Glare (30%): < 5% of pixels > 250 brightness
+        - Contrast (30%): Michelson ratio > 0.7
+
+        Args:
+            image_bytes: Image file bytes
+
+        Returns:
+            {
+                "total_score": float (0-100),
+                "is_acceptable": bool,
+                "details": {"blur": float, "glare": float, "contrast": float},
+                "feedback": str (user-friendly message)
+            }
+        """
+        try:
+            # Decode image
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            gray = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
+
+            if gray is None:
+                raise ValueError("Failed to decode image for DQS calculation")
+
+            h, w = gray.shape
+
+            # --- METRIC 1: BLUR (Laplacian variance) ---
+            blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+            # Normalize to 0-100 scale (threshold = 100)
+            blur_normalized = min(100, (blur_score / 150) * 100)
+
+            # --- METRIC 2: GLARE (brightness clustering) ---
+            # Count pixels above brightness threshold (250 = near-white)
+            _, mask = cv2.threshold(gray, settings.glare_pixel_threshold, 255, cv2.THRESH_BINARY)
+            glare_pixels = cv2.countNonZero(mask)
+            glare_percent = (glare_pixels / (h * w)) * 100
+            # Normalize (penalize glare)
+            glare_normalized = max(0, 100 - (glare_percent * 10))
+
+            # --- METRIC 3: CONTRAST (Michelson ratio) ---
+            # Formula: (Lmax - Lmin) / (Lmax + Lmin)
+            min_val, max_val, _, _ = cv2.minMaxLoc(gray)
+            if max_val + min_val == 0:
+                contrast_score = 0
+            else:
+                contrast_score = (max_val - min_val) / (max_val + min_val)
+            # Normalize to 0-100 scale
+            contrast_normalized = contrast_score * 100
+
+            # --- WEIGHTED TOTAL SCORE ---
+            total_score = (
+                blur_normalized * settings.dqs_blur_weight +
+                glare_normalized * settings.dqs_glare_weight +
+                contrast_normalized * settings.dqs_contrast_weight
+            )
+
+            # --- USER FEEDBACK ---
+            feedback = self._generate_dqs_feedback(blur_normalized, glare_normalized, contrast_normalized)
+
+            return {
+                "total_score": round(total_score, 2),
+                "is_acceptable": total_score >= settings.dqs_threshold,
+                "details": {
+                    "blur": round(blur_normalized, 2),
+                    "glare": round(glare_normalized, 2),
+                    "contrast": round(contrast_normalized, 2)
+                },
+                "feedback": feedback
+            }
+
+        except Exception as e:
+            logger.warning("DQS calculation failed, assuming acceptable", extra={"error": str(e)})
+            # Return passing score if calculation fails
+            return {
+                "total_score": 75.0,
+                "is_acceptable": True,
+                "details": {"blur": 75.0, "glare": 75.0, "contrast": 75.0},
+                "feedback": "✅ Image quality is good"
+            }
+
+    def _generate_dqs_feedback(self, blur: float, glare: float, contrast: float) -> str:
+        """
+        Generates user-friendly feedback based on lowest-scoring metric.
+
+        Args:
+            blur: Blur score (0-100)
+            glare: Glare score (0-100)
+            contrast: Contrast score (0-100)
+
+        Returns:
+            User-friendly feedback message
+        """
+        scores = {
+            "blur": (blur, "Hold phone steady or move to better lighting"),
+            "glare": (glare, "Turn off flash or tilt document away from overhead lights"),
+            "contrast": (contrast, "Ensure document is on a dark, flat surface")
+        }
+
+        # Find lowest-scoring metric
+        lowest = min(scores.items(), key=lambda x: x[1][0])
+        metric_name, (score, message) = lowest
+
+        if score < 50:
+            return f"⚠️ Image quality issue: {message}"
+        elif score < 70:
+            return f"⚠️ Image quality could be better: {message}"
+        else:
+            return "✅ Image quality is good"
 
 
 async def validate_file(

@@ -79,10 +79,19 @@ class Settings(BaseSettings):
     max_files_per_upload: int = 10
     upload_rate_limit_window_seconds: int = 3600
 
-    # Blur Detection
+    # Blur Detection (legacy - now part of DQS)
     blur_threshold: float = 100.0
     min_image_width: int = 800
     min_image_height: int = 600
+
+    # Document Quality Score (DQS) Configuration
+    dqs_threshold: float = 70.0  # Overall quality score threshold
+    dqs_blur_weight: float = 0.4  # Blur contributes 40% to DQS
+    dqs_glare_weight: float = 0.3  # Glare contributes 30% to DQS
+    dqs_contrast_weight: float = 0.3  # Contrast contributes 30% to DQS
+    glare_pixel_threshold: int = 250  # Brightness level (0-255) to consider as glare
+    glare_percent_max: float = 5.0  # Maximum % of pixels that can be glare
+    contrast_michelson_min: float = 0.7  # Minimum Michelson contrast ratio
 
     # =============================================================================
     # JWT & Authentication
