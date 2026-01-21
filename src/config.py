@@ -21,21 +21,21 @@ class Settings(BaseSettings):
     # =============================================================================
     # Supabase Configuration
     # =============================================================================
-    next_public_supabase_url: str
-    supabase_service_role_key: str
-    supabase_anon_key: str
+    next_public_supabase_url: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_anon_key: str | None = None
 
     # =============================================================================
     # OpenAI Configuration
     # =============================================================================
-    openai_api_key: str
+    openai_api_key: str | None = None
     openai_org_id: str | None = None
 
     # =============================================================================
     # OCR Configuration
     # =============================================================================
     ocr_engine: Literal["tesseract", "google_vision", "aws_textract"] = "tesseract"
-    tesseract_cmd: str = "/usr/local/bin/tesseract"
+    tesseract_cmd: str = "/usr/bin/tesseract"  # Docker/Linux default path
 
     # Google Vision (optional)
     google_cloud_project_id: str | None = None
@@ -96,7 +96,7 @@ class Settings(BaseSettings):
     # =============================================================================
     # JWT & Authentication
     # =============================================================================
-    jwt_secret: str
+    jwt_secret: str | None = None
     jwt_algorithm: str = "HS256"
     jwt_audience: str = "authenticated"
 
