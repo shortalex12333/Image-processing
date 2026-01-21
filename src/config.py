@@ -4,7 +4,7 @@ Loads environment variables with validation.
 """
 
 import os
-from typing import Literal
+from typing import Literal, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,15 +21,15 @@ class Settings(BaseSettings):
     # =============================================================================
     # Supabase Configuration
     # =============================================================================
-    next_public_supabase_url: str | None = None
-    supabase_service_role_key: str | None = None
-    supabase_anon_key: str | None = None
+    next_public_supabase_url: Optional[str] = None
+    supabase_service_role_key: Optional[str] = None
+    supabase_anon_key: Optional[str] = None
 
     # =============================================================================
     # OpenAI Configuration
     # =============================================================================
-    openai_api_key: str | None = None
-    openai_org_id: str | None = None
+    openai_api_key: Optional[str] = None
+    openai_org_id: Optional[str] = None
 
     # =============================================================================
     # OCR Configuration
@@ -38,12 +38,12 @@ class Settings(BaseSettings):
     tesseract_cmd: str = "/usr/bin/tesseract"  # Docker/Linux default path
 
     # Google Vision (optional)
-    google_cloud_project_id: str | None = None
-    google_application_credentials: str | None = None
+    google_cloud_project_id: Optional[str] = None
+    google_application_credentials: Optional[str] = None
 
     # AWS Textract (optional)
-    aws_access_key_id: str | None = None
-    aws_secret_access_key: str | None = None
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
     aws_region: str = "us-east-1"
 
     # =============================================================================
@@ -96,14 +96,14 @@ class Settings(BaseSettings):
     # =============================================================================
     # JWT & Authentication
     # =============================================================================
-    jwt_secret: str | None = None
+    jwt_secret: Optional[str] = None
     jwt_algorithm: str = "HS256"
     jwt_audience: str = "authenticated"
 
     # =============================================================================
     # Deployment Configuration
     # =============================================================================
-    render_service_url: str | None = None
+    render_service_url: Optional[str] = None
     port: int = 8001
     log_level: Literal["debug", "info", "warning", "error"] = "info"
     environment: Literal["development", "staging", "production"] = "development"
@@ -119,7 +119,7 @@ class Settings(BaseSettings):
     # =============================================================================
     # Monitoring & Observability
     # =============================================================================
-    sentry_dsn: str | None = None
+    sentry_dsn: Optional[str] = None
     sentry_environment: str = "development"
     sentry_traces_sample_rate: float = 0.1
 
