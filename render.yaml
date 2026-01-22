@@ -2,6 +2,7 @@
 services:
   - type: web
     name: image-processing
+    repo: https://github.com/shortalex12333/Image-processing
     env: docker
     dockerfilePath: ./Dockerfile
     plan: starter
