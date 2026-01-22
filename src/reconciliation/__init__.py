@@ -1,1 +1,3 @@
-"""Reconciliation layer for matching draft lines to existing parts and orders."""
+"""
+Reconciliation module - Match extracted entities to database records.
+"""

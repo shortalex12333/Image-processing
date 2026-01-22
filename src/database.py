@@ -2,13 +2,14 @@
 Database connection and Supabase client management.
 """
 
+from typing import Optional
 from supabase import create_client, Client
 from src.config import settings
 
 
 # Global Supabase client instances
-_supabase_service: Client | None = None
-_supabase_anon: Client | None = None
+_supabase_service: Optional[Client] = None
+_supabase_anon: Optional[Client] = None
 
 
 def get_supabase_service() -> Client:
