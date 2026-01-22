@@ -251,11 +251,18 @@ class ReceivingHandler:
             else:
                 ocr_result = await self.ocr_engine.extract_text(image_bytes)
 
+            # Save OCR results to database
+            await self._save_ocr_results(
+                image_id=image_id,
+                yacht_id=yacht_id,
+                ocr_result=ocr_result
+            )
+
             # Step 3: Table detection
             table_result = self.table_detector.detect_table(ocr_result)
 
             # Step 4: Row parsing
-            parse_result = self.row_parser.parse_lines(ocr_result["text"])
+            parse_result = self.row_parser.parse_lines(ocr_result.text)
 
             # Step 5: LLM normalization (if needed)
             controller = CostController(cost_tracker)
@@ -268,7 +275,7 @@ class ReceivingHandler:
             if decision.action == "invoke_llm":
                 normalizer = LLMNormalizer(cost_tracker)
                 llm_result = await normalizer.normalize(
-                    ocr_text=ocr_result["text"],
+                    ocr_text=ocr_result.text,
                     model=decision.model,
                     max_tokens=decision.max_tokens,
                     temperature=decision.temperature
@@ -360,6 +367,55 @@ class ReceivingHandler:
                 "error": str(e)
             }, exc_info=True)
             raise
+
+    async def _save_ocr_results(
+        self,
+        image_id: UUID,
+        yacht_id: UUID,
+        ocr_result
+    ) -> None:
+        """
+        Save OCR results to database.
+
+        Args:
+            image_id: Image UUID
+            yacht_id: Yacht UUID
+            ocr_result: OCRResult object from PaddleOCR/PDF extractor
+        """
+        try:
+            # Update pms_image_uploads with OCR results
+            update_data = {
+                "ocr_text": ocr_result.text,
+                "ocr_confidence": ocr_result.confidence,
+                "ocr_engine": ocr_result.engine_used,
+                "ocr_processing_time_ms": ocr_result.processing_time_ms,
+                "ocr_line_count": len(ocr_result.lines),
+                "ocr_word_count": len(ocr_result.text.split()),
+                "processing_status": "completed",
+                "processed_at": "now()"
+            }
+
+            self.supabase.table("pms_image_uploads") \
+                .update(update_data) \
+                .eq("image_id", str(image_id)) \
+                .eq("yacht_id", str(yacht_id)) \
+                .execute()
+
+            logger.info("OCR results saved to database", extra={
+                "image_id": str(image_id),
+                "yacht_id": str(yacht_id),
+                "ocr_engine": ocr_result.engine_used,
+                "confidence": ocr_result.confidence,
+                "word_count": len(ocr_result.text.split())
+            })
+
+        except Exception as e:
+            logger.error("Failed to save OCR results", extra={
+                "image_id": str(image_id),
+                "error": str(e)
+            }, exc_info=True)
+            # Don't fail the entire process if OCR save fails
+            pass
 
     async def _save_draft_lines(
         self,
