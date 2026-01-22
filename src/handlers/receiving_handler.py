@@ -11,7 +11,7 @@ from src.intake.validator import FileValidator, ValidationError
 from src.intake.deduplicator import Deduplicator
 from src.intake.rate_limiter import RateLimiter, RateLimitExceeded
 from src.intake.storage_manager import StorageManager, StorageUploadError
-from src.ocr.paddleocr_ocr import PaddleOCR_Engine
+from src.ocr.ocr_factory import OCRFactory
 from src.ocr.pdf_extractor import PDFExtractor
 from src.extraction.table_detector import TableDetector
 from src.extraction.row_parser import RowParser
@@ -44,8 +44,8 @@ class ReceivingHandler:
         self.rate_limiter = RateLimiter()
         self.storage_manager = StorageManager()
 
-        # OCR components
-        self.ocr_engine = PaddleOCR_Engine()
+        # OCR components (auto-selects best available engine based on feature flags)
+        self.ocr_engine = OCRFactory.get_ocr_engine()
         self.pdf_extractor = PDFExtractor()
 
         # Extraction components
