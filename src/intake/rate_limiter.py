@@ -44,7 +44,7 @@ class RateLimiter:
         try:
             # Count uploads in the time window
             result = self.supabase.table("pms_image_uploads") \
-                .select("image_id", count="exact") \
+                .select("id", count="exact") \
                 .eq("yacht_id", str(yacht_id)) \
                 .gte("uploaded_at", window_start.isoformat()) \
                 .execute()

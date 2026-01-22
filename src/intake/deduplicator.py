@@ -65,13 +65,25 @@ class Deduplicator:
                     "existing_image_id": existing["id"],
                     "yacht_id": str(yacht_id)
                 })
-                # Map database fields to expected format
+
+                # Map database validation_stage to API processing_status
+                validation_stage = existing.get("validation_stage", "validated")
+                if validation_stage in ["validated", "completed"]:
+                    processing_status = "completed"
+                elif validation_stage in ["processing", "pending"]:
+                    processing_status = "processing"
+                elif validation_stage in ["failed", "rejected"]:
+                    processing_status = "failed"
+                else:
+                    processing_status = "queued"  # Default fallback
+
+                # Map database fields to expected API format
                 return {
                     "image_id": existing["id"],
                     "file_name": existing["file_name"],
                     "storage_path": existing["storage_path"],
                     "uploaded_at": existing["uploaded_at"],
-                    "processing_status": existing["validation_stage"]
+                    "processing_status": processing_status
                 }
 
             return None
