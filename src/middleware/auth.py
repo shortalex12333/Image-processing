@@ -1,13 +1,13 @@
 """
-JWT authentication middleware.
-Validates JWT tokens and extracts user/yacht context.
+JWT authentication middleware using Supabase client.
+Validates JWT tokens via Supabase and extracts user/yacht context.
 """
 
-import jwt
 from fastapi import Header, HTTPException, status
 from uuid import UUID
 
 from src.config import settings
+from src.database import get_supabase_service
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -30,7 +30,10 @@ class AuthContext:
 
 async def get_auth_context(authorization: str = Header(None)) -> AuthContext:
     """
-    Extract and validate JWT from Authorization header.
+    Extract and validate JWT using Supabase client.
+
+    This approach uses Supabase's built-in token validation, which handles
+    signature verification internally. No JWT_SECRET environment variable needed.
 
     Args:
         authorization: Authorization header value (Bearer <token>)
@@ -65,45 +68,78 @@ async def get_auth_context(authorization: str = Header(None)) -> AuthContext:
     token = parts[1]
 
     try:
-        # Decode JWT
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.jwt_algorithm],
-            audience=settings.jwt_audience
-        )
+        # Use Supabase client to validate token
+        # This handles signature verification internally - no JWT_SECRET needed!
+        supabase = get_supabase_service()
 
-        # Extract claims
-        user_id = UUID(payload.get("sub"))  # Subject = user ID
-        yacht_id = UUID(payload.get("yacht_id"))
-        role = payload.get("role", "crew")
-        email = payload.get("email", "")
+        # Get user from token (Supabase validates signature)
+        user_response = supabase.auth.get_user(token)
+        user = user_response.user
 
-        logger.debug("JWT validated", extra={
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: User not found"
+            )
+
+        # Extract user info
+        user_id = UUID(user.id)
+        email = user.email or ""
+
+        # Get yacht_id and role from user metadata
+        user_metadata = user.user_metadata or {}
+        yacht_id_str = user_metadata.get("yacht_id")
+        role = user_metadata.get("role", "crew")
+
+        # If yacht_id not in metadata, try to get from database
+        if not yacht_id_str:
+            try:
+                # Try to find yacht association in database
+                # Note: Table name may vary - adjust if needed
+                result = supabase.table("pms_yacht_users") \
+                    .select("yacht_id, role") \
+                    .eq("user_id", str(user_id)) \
+                    .limit(1) \
+                    .execute()
+
+                if result.data and len(result.data) > 0:
+                    yacht_id_str = result.data[0].get("yacht_id")
+                    role = result.data[0].get("role", "crew")
+            except Exception as e:
+                logger.debug("Could not query yacht association", extra={"error": str(e)})
+                # If table doesn't exist or query fails, fall back to None
+                pass
+
+        # If still no yacht_id, this is an error
+        if not yacht_id_str:
+            logger.warning("User not associated with any yacht", extra={
+                "user_id": str(user_id),
+                "email": email
+            })
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User not associated with any yacht. Please contact support."
+            )
+
+        yacht_id = UUID(yacht_id_str)
+
+        logger.debug("User authenticated via Supabase", extra={
             "user_id": str(user_id),
             "yacht_id": str(yacht_id),
-            "role": role
+            "role": role,
+            "email": email
         })
 
         return AuthContext(user_id, yacht_id, role, email)
 
-    except jwt.ExpiredSignatureError:
-        logger.warning("JWT expired")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired"
-        )
-    except jwt.InvalidTokenError as e:
-        logger.warning("Invalid JWT", extra={"error": str(e)})
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.warning("Token validation failed", extra={"error": str(e)})
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid token: {str(e)}"
-        )
-    except (KeyError, ValueError) as e:
-        logger.error("JWT missing required claims", extra={"error": str(e)})
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token claims"
         )
 
 

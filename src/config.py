@@ -34,17 +34,26 @@ class Settings(BaseSettings):
     # =============================================================================
     # OCR Configuration
     # =============================================================================
-    ocr_engine: Literal["tesseract", "google_vision", "aws_textract"] = "tesseract"
-    tesseract_cmd: str = "/usr/bin/tesseract"  # Docker/Linux default path
+    ocr_engine: Literal["paddleocr", "tesseract", "google_vision", "surya", "aws_textract"] = "paddleocr"
+    tesseract_cmd: str = "/usr/bin/tesseract"  # Docker/Linux default path (not used with PaddleOCR)
 
-    # Google Vision (optional)
+    # Google Vision API (recommended: $1.50/1000 images, 80% accuracy)
+    google_vision_api_key: Optional[str] = None
+
+    # Legacy Google Cloud credentials (for service account auth)
     google_cloud_project_id: Optional[str] = None
     google_application_credentials: Optional[str] = None
+
+    # Surya OCR (requires 4GB RAM, free, 91% accuracy)
+    surya_model_path: str = "/app/models/surya"
 
     # AWS Textract (optional)
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_region: str = "us-east-1"
+
+    # OCR fallback configuration
+    ocr_fallback_enabled: bool = True  # Fallback to Tesseract if primary fails
 
     # =============================================================================
     # LLM Model Selection
@@ -96,9 +105,12 @@ class Settings(BaseSettings):
     # =============================================================================
     # JWT & Authentication
     # =============================================================================
-    jwt_secret: Optional[str] = None
-    jwt_algorithm: str = "HS256"
-    jwt_audience: str = "authenticated"
+    # NOTE: JWT validation now uses Supabase client (supabase.auth.get_user)
+    # No JWT secret needed - Supabase handles signature verification internally
+    # These settings are kept for backward compatibility but are no longer used
+    jwt_secret: Optional[str] = None  # DEPRECATED: Not used with Supabase client auth
+    jwt_algorithm: str = "HS256"      # DEPRECATED: Not used with Supabase client auth
+    jwt_audience: str = "authenticated"  # DEPRECATED: Not used with Supabase client auth
 
     # =============================================================================
     # Deployment Configuration
