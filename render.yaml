@@ -26,4 +26,4 @@ services:
 
     healthCheckPath: /health
 
-    autoDeploy: true
+    autoDeploy: false
