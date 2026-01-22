@@ -9,14 +9,35 @@ services:
     branch: main
 
     envVars:
+      # Supabase
       - key: NEXT_PUBLIC_SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+
+      # OCR Engine Feature Flags (toggle based on plan tier)
+      - key: ENABLE_GOOGLE_VISION
+        sync: false
+      - key: ENABLE_TESSERACT
+        value: true
+      - key: ENABLE_PADDLEOCR
+        value: false
+      - key: ENABLE_SURYA
+        value: false
+      - key: ENABLE_AWS_TEXTRACT
+        value: false
+
+      # OCR API Keys
+      - key: GOOGLE_VISION_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
+
+      # Legacy (deprecated, but kept for backward compatibility)
       - key: JWT_SECRET
         sync: false
+
+      # Application
       - key: ENVIRONMENT
         value: production
       - key: LOG_LEVEL

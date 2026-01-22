@@ -34,26 +34,42 @@ class Settings(BaseSettings):
     # =============================================================================
     # OCR Configuration
     # =============================================================================
+    # OCR Engine Selection (will auto-select best available based on flags below)
     ocr_engine: Literal["paddleocr", "tesseract", "google_vision", "surya", "aws_textract"] = "paddleocr"
-    tesseract_cmd: str = "/usr/bin/tesseract"  # Docker/Linux default path (not used with PaddleOCR)
+    tesseract_cmd: str = "/usr/bin/tesseract"  # Docker/Linux default path
 
-    # Google Vision API (recommended: $1.50/1000 images, 80% accuracy)
-    google_vision_api_key: Optional[str] = None
+    # =============================================================================
+    # OCR Engine Feature Flags (Toggle based on your Render plan)
+    # =============================================================================
+    # Enable/disable OCR engines based on your infrastructure tier
+    # The system will automatically pick the best available enabled engine
+
+    # TIER 1: Starter Plan (512 MB RAM) - Enable ONLY cloud/lightweight engines
+    enable_google_vision: bool = False      # Cloud API: 80% accuracy, $1.50/1000 images, ~50MB RAM
+    enable_tesseract: bool = True           # Local: 31% accuracy, free, ~50MB RAM (fallback only)
+
+    # TIER 2: Standard Plan (2 GB RAM) - Can enable PaddleOCR
+    enable_paddleocr: bool = False          # Local: 94% accuracy, free, ~500MB RAM
+
+    # TIER 3: Pro Plan (4+ GB RAM) - Can enable everything
+    enable_surya: bool = False              # Local: 91% accuracy, free, ~4GB RAM
+    enable_aws_textract: bool = False       # Cloud API: 85% accuracy, $1.50/1000 pages, ~50MB RAM
+
+    # OCR API Keys (required if cloud engines enabled)
+    google_vision_api_key: Optional[str] = None  # Required if enable_google_vision=True
+    aws_access_key_id: Optional[str] = None      # Required if enable_aws_textract=True
+    aws_secret_access_key: Optional[str] = None  # Required if enable_aws_textract=True
+    aws_region: str = "us-east-1"
 
     # Legacy Google Cloud credentials (for service account auth)
     google_cloud_project_id: Optional[str] = None
     google_application_credentials: Optional[str] = None
 
-    # Surya OCR (requires 4GB RAM, free, 91% accuracy)
+    # Surya model path (required if enable_surya=True)
     surya_model_path: str = "/app/models/surya"
 
-    # AWS Textract (optional)
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
-    aws_region: str = "us-east-1"
-
     # OCR fallback configuration
-    ocr_fallback_enabled: bool = True  # Fallback to Tesseract if primary fails
+    ocr_fallback_enabled: bool = True  # Fallback to next best engine if primary fails
 
     # =============================================================================
     # LLM Model Selection
