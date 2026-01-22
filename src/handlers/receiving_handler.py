@@ -225,24 +225,22 @@ class ReceivingHandler:
         try:
             # Step 1: Fetch image metadata
             result = self.supabase.table("pms_image_uploads") \
-                .select("storage_path, mime_type, metadata") \
-                .eq("image_id", str(image_id)) \
+                .select("storage_bucket, storage_path, mime_type, metadata, document_type") \
+                .eq("id", str(image_id)) \
                 .single() \
                 .execute()
 
             if not result.data:
                 raise Exception(f"Image not found: {image_id}")
 
+            storage_bucket = result.data["storage_bucket"]
             storage_path = result.data["storage_path"]
             mime_type = result.data["mime_type"]
             upload_type = result.data.get("metadata", {}).get("upload_type", "receiving")
 
             # Download image
-            bucket_name = self.storage_manager.supabase.storage.from_(
-                settings.storage_bucket_receiving
-            ).get_bucket()
             image_bytes = await self.storage_manager.download_file(
-                settings.storage_bucket_receiving, storage_path
+                storage_bucket, storage_path
             )
 
             # Step 2: OCR extraction
@@ -385,19 +383,21 @@ class ReceivingHandler:
         try:
             # Update pms_image_uploads with OCR results
             update_data = {
-                "ocr_text": ocr_result.text,
+                "ocr_raw_text": ocr_result.text,
                 "ocr_confidence": ocr_result.confidence,
                 "ocr_engine": ocr_result.engine_used,
                 "ocr_processing_time_ms": ocr_result.processing_time_ms,
                 "ocr_line_count": len(ocr_result.lines),
                 "ocr_word_count": len(ocr_result.text.split()),
-                "processing_status": "completed",
+                "validation_stage": "validated",
+                "extraction_status": "completed",
+                "ocr_completed_at": "now()",
                 "processed_at": "now()"
             }
 
             self.supabase.table("pms_image_uploads") \
                 .update(update_data) \
-                .eq("image_id", str(image_id)) \
+                .eq("id", str(image_id)) \
                 .eq("yacht_id", str(yacht_id)) \
                 .execute()
 

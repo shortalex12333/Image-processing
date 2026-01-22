@@ -47,13 +47,14 @@ class Deduplicator:
             >>> dedup = Deduplicator()
             >>> existing = await dedup.check_duplicate(sha256_hash, yacht_id)
             >>> if existing:
-            ...     print(f"Duplicate of {existing['image_id']}")
+            ...     print(f"Duplicate of {existing['id']}")
         """
         try:
             result = self.supabase.table("pms_image_uploads") \
-                .select("image_id, file_name, storage_path, uploaded_at, processing_status") \
+                .select("id, file_name, storage_path, uploaded_at, validation_stage") \
                 .eq("yacht_id", str(yacht_id)) \
-                .eq("sha256", sha256) \
+                .eq("sha256_hash", sha256) \
+                .is_("deleted_at", "null") \
                 .limit(1) \
                 .execute()
 
@@ -61,10 +62,17 @@ class Deduplicator:
                 existing = result.data[0]
                 logger.info("Duplicate image found", extra={
                     "sha256": sha256,
-                    "existing_image_id": existing["image_id"],
+                    "existing_image_id": existing["id"],
                     "yacht_id": str(yacht_id)
                 })
-                return existing
+                # Map database fields to expected format
+                return {
+                    "image_id": existing["id"],
+                    "file_name": existing["file_name"],
+                    "storage_path": existing["storage_path"],
+                    "uploaded_at": existing["uploaded_at"],
+                    "processing_status": existing["validation_stage"]
+                }
 
             return None
 
@@ -114,6 +122,17 @@ class Deduplicator:
             Exception: If database insert fails
         """
         try:
+            # Map upload_type to storage_bucket and document_type
+            bucket_map = {
+                "receiving": ("pms-receiving-images", "packing_slip"),
+                "shipping_label": ("pms-label-pdfs", "shipping_label"),
+                "discrepancy": ("pms-discrepancy-photos", "discrepancy_photo"),
+                "part_photo": ("pms-part-photos", "part_photo"),
+                "finance": ("pms-finance-documents", "invoice")
+            }
+
+            storage_bucket, document_type = bucket_map.get(upload_type, ("pms-receiving-images", "unknown"))
+
             metadata = {
                 "upload_type": upload_type,
                 "blur_score": blur_score
@@ -128,16 +147,18 @@ class Deduplicator:
                 "file_name": file_name,
                 "mime_type": mime_type,
                 "file_size_bytes": file_size_bytes,
-                "sha256": sha256,
+                "sha256_hash": sha256,
+                "storage_bucket": storage_bucket,
                 "storage_path": storage_path,
-                "processing_status": "queued",
+                "validation_stage": "uploaded",
+                "document_type": document_type,
                 "metadata": metadata
             }).execute()
 
             if not result.data:
                 raise Exception("Failed to insert image record - no data returned")
 
-            image_id = UUID(result.data[0]["image_id"])
+            image_id = UUID(result.data[0]["id"])
 
             logger.info("Image upload recorded", extra={
                 "image_id": str(image_id),
