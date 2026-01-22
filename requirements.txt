@@ -19,11 +19,19 @@ postgrest==0.19.3
 opencv-python==4.10.0.84
 pillow==11.0.0
 pillow-heif==0.21.0
-numpy==2.2.1
+numpy==1.26.4  # Compatible with both opencv and paddleocr
 
 # OCR
 pytesseract==0.3.13
+paddlepaddle==3.0.0b2  # PaddlePaddle deep learning framework
+paddleocr==2.8.1  # High accuracy OCR (91.4% on packing slips)
 pdfplumber==0.11.4
+requests==2.32.3  # For Google Vision API calls
+psutil==6.1.0  # RAM check for Surya compatibility
+
+# Surya OCR (optional - only install when upgrading to 4GB RAM)
+# Uncomment when ready to switch to OCR_ENGINE=surya:
+# surya-ocr==0.4.0  # Requires 4GB RAM minimum
 
 # AI/LLM
 openai==1.59.5
