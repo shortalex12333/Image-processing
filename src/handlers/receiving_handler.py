@@ -11,9 +11,8 @@ from src.intake.validator import FileValidator, ValidationError
 from src.intake.deduplicator import Deduplicator
 from src.intake.rate_limiter import RateLimiter, RateLimitExceeded
 from src.intake.storage_manager import StorageManager, StorageUploadError
-from src.ocr.tesseract_ocr import TesseractOCR
+from src.ocr.paddleocr_ocr import PaddleOCR_Engine
 from src.ocr.pdf_extractor import PDFExtractor
-from src.ocr.cloud_ocr import CloudOCR, CloudOCRNotAvailable
 from src.extraction.table_detector import TableDetector
 from src.extraction.row_parser import RowParser
 from src.extraction.cost_controller import SessionCostTracker, CostController, Decision
@@ -46,7 +45,7 @@ class ReceivingHandler:
         self.storage_manager = StorageManager()
 
         # OCR components
-        self.tesseract_ocr = TesseractOCR()
+        self.ocr_engine = PaddleOCR_Engine()
         self.pdf_extractor = PDFExtractor()
 
         # Extraction components
@@ -250,15 +249,7 @@ class ReceivingHandler:
             if mime_type == "application/pdf":
                 ocr_result = await self.pdf_extractor.extract_text(image_bytes)
             else:
-                ocr_result = await self.tesseract_ocr.extract_text(image_bytes, preprocess=True)
-
-                # Fallback to cloud OCR if confidence too low
-                if ocr_result["confidence"] < 0.6 and settings.enable_cloud_ocr_fallback:
-                    try:
-                        cloud_ocr = CloudOCR(settings.ocr_engine)
-                        ocr_result = await cloud_ocr.extract_text(image_bytes)
-                    except CloudOCRNotAvailable:
-                        logger.info("Cloud OCR not available, using Tesseract result")
+                ocr_result = await self.ocr_engine.extract_text(image_bytes)
 
             # Step 3: Table detection
             table_result = self.table_detector.detect_table(ocr_result)
