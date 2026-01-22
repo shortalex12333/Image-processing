@@ -15,8 +15,10 @@ WORKDIR /app
 # Copy requirements first (for Docker layer caching)
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Upgrade pip and install Python dependencies
+# Cache bust: 2026-01-22 - PaddleOCR migration
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
