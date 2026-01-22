@@ -1,5 +1,6 @@
 """
 Image Processing Service - FastAPI Application Entry Point
+Last deployment: 2026-01-22 14:37 UTC (Supabase client auth)
 """
 
 from contextlib import asynccontextmanager
